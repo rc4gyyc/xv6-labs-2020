@@ -66,7 +66,7 @@ void primes(int lpipe[2])
 int main(int argc, char const *argv[])
 {
   int p[2];
-  pipe(p);
+  pipe(p);//创建管道
 
   for (int i = 2; i <= 35; ++i) //写入初始数据
     write(p[WR], &i, INT_LEN);
