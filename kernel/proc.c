@@ -121,6 +121,23 @@ found:
     return 0;
   }
 
+  p->kernelpt = proc_kvminit();
+  if(p->kernelpt == 0){
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+
+  // Allocate a page for the process's kernel stack.
+  // Map it high in memory, followed by an invalid
+  // guard page.
+  char *pa = kalloc();
+  if(pa == 0)
+    panic("kalloc");
+  uint64 va = KSTACK((int) (p - proc));
+  uvmmap(p->kernelpt, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+  p->kstack = va;
+  
   // Set up new context to start executing at forkret,
   // which returns to user space.
   memset(&p->context, 0, sizeof(p->context));
@@ -128,6 +145,23 @@ found:
   p->context.sp = p->kstack + PGSIZE;
 
   return p;
+}
+
+void
+proc_freekernelpt(pagetable_t kernelpt)
+{
+  // there are 2^9 = 512 PTEs in a page table.
+  for(int i = 0; i < 512; i++){
+    pte_t pte = kernelpt[i];
+    if(pte & PTE_V){
+      kernelpt[i] = 0;
+      if ((pte & (PTE_R|PTE_W|PTE_X)) == 0){
+        uint64 child = PTE2PA(pte);
+        proc_freekernelpt((pagetable_t)child);
+      }
+    }
+  }
+  kfree((void*)kernelpt);
 }
 
 // free a proc structure and the data hanging from it,
@@ -142,6 +176,14 @@ freeproc(struct proc *p)
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
+  
+  if(p->kstack)
+    uvmunmap(p->kernelpt, p->kstack, 1, 1);
+  p->kstack = 0;
+
+  proc_freekernelpt(p->kernelpt);
+  p->kernelpt = 0;
+
   p->sz = 0;
   p->pid = 0;
   p->parent = 0;
@@ -473,8 +515,13 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
+        // 加载进程的内核页表到核心的satp寄存器
+        proc_kvminithart(p->kernelpt);
+
         swtch(&c->context, &p->context);
 
+        kvminithart();
+        
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;

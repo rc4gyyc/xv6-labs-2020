@@ -159,7 +159,10 @@ int             uartgetc(void);
 
 // vm.c
 void            kvminit(void);
+pagetable_t     proc_kvminit(void);
+void            uvmmap(pagetable_t, uint64, uint64, uint64, int);
 void            kvminithart(void);
+void            proc_kvminithart(pagetable_t);
 uint64          kvmpa(uint64);
 void            kvmmap(uint64, uint64, uint64, int);
 int             mappages(pagetable_t, uint64, uint64, uint64, int);
