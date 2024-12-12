@@ -289,6 +289,36 @@ freewalk(pagetable_t pagetable)
   kfree((void*)pagetable);
 }
 
+void
+_vmprint(pagetable_t pagetable, int level)
+{
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    // PTE是否有效
+    if(pte & PTE_V){
+
+      printf("..");
+      for(int j=1;j<level;j++)
+        printf(" ..");
+      
+      uint64 child = PTE2PA(pte);
+      printf("%d: pte %p pa %p\n", i, pte, child);
+
+      // 如果不是最低级的目录，就继续递归
+      if((pte & (PTE_R|PTE_W|PTE_X)) == 0){
+        _vmprint((pagetable_t)child, level + 1);
+      }
+    }
+  }
+}
+
+void
+vmprint(pagetable_t pagetable)
+{
+  printf("page table %p\n", pagetable);
+  _vmprint(pagetable, 1);
+}
+
 // Free user memory pages,
 // then free page-table pages.
 void
