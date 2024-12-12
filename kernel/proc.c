@@ -291,6 +291,9 @@ fork(void)
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
+  //将trace_mask拷贝到子进程
+  np->trace_mask = p->trace_mask;
+  
   pid = np->pid;
 
   np->state = RUNNABLE;
@@ -692,4 +695,17 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+uint64
+procnum(void)
+{
+  struct proc *p;
+  uint64 cnt = 0;
+  for(p = proc;p<&proc[NPROC];p++)
+  {
+      if(p->state!=UNUSED)
+        cnt += 1;
+  }
+  return cnt;
 }

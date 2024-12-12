@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "sysinfo.h"
 
 uint64
 sys_exit(void)
@@ -94,4 +95,29 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+uint64
+sys_trace(void)
+{
+  argint(0, &(myproc()->trace_mask));
+  return 0;
+}
+
+uint64
+sys_sysinfo(void)
+{
+  struct sysinfo info;
+
+  uint64 user_addr;
+  if(argaddr(0,&user_addr)<0)
+    return -1;
+  
+  info.freemem = kfreemem();
+  info.nproc = procnum();
+
+  // 从内核空间拷贝数据到用户空间，需要知道用户空间地址user_addr
+  if (copyout(myproc()->pagetable, user_addr, (char *)&info, sizeof info) < 0)
+    return -1;
+
+  return 0;
 }
